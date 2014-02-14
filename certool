@@ -11,8 +11,7 @@ name=$2
 [ -z "$name" ] && name=ssl
 
 check_file() {
-  local file
-  file=$1
+  local file="$1"
   if [ -e "${file}" ]; then
     echo "${file} already exists"
     exit 1
@@ -47,10 +46,17 @@ check_pfx() {
   check_file ${name}.pfx
 }
 
+create_key() {
+  check_key_secure
+  $OPENSSL genrsa -des3 -out ${name}.key.secure 2048
+}
+
 create_key_csr() {
+  check_key
   check_key_secure
   check_csr
-  $OPENSSL req -out ${name}.csr -new -newkey rsa:2048 -nodes -keyout ${name}.key.secure
+  $OPENSSL req -out ${name}.csr -new -newkey rsa:2048 -nodes -keyout ${name}.key
+  $OPENSSL rsa -des3 -in ${name}.key -out ${name}.key.secure
 }
 
 create_csr() {
@@ -66,7 +72,7 @@ create_csr_from_crt() {
 self_signed() {
   check_key_secure
   check_csr
-  $OPENSSL req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${name}.key -out ${name}.crt
+  $OPENSSL req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${name}.key.secure -out ${name}.crt
 }
 
 remove_password() {
@@ -74,39 +80,39 @@ remove_password() {
   $OPENSSL rsa -in ${name}.key.secure -out ${name}.key
 }
 
-check_csr() {
+read_csr() {
   $OPENSSL req -text -noout -verify -in ${name}.csr
 }
 
-check_key() {
-  $OPENSSL rsa -in ${name}.key -check
+read_key() {
+  $OPENSSL rsa -in ${name}.key.secure -check
 }
 
-check_crt() {
+read_crt() {
   $OPENSSL x509 -in ${name}.crt -text -noout
 }
 
-check_p12() {
+read_p12() {
   $OPENSSL pkcs12 -info -in ${name}.p12
 }
 
-check_pfx() {
+read_pfx() {
   $OPENSSL pkcs12 -info -in ${name}.pfx
 }
 
 verify_md5() {
-  crtmd5=`$OPENSSL x509 -noout -modulus -in ${name}.crt | $OPENSSL md5`
-  keymd5=`$OPENSSL rsa -noout -modulus -in ${name}.key | $OPENSSL md5`
-  csrmd5=`$OPENSSL req -noout -modulus -in ${name}.csr | $OPENSSL md5`
-  if [ "$crtmd5" != "$keymd5" ]; then
+  keymd5=`$OPENSSL rsa -noout -modulus -in ${name}.key.secure | $OPENSSL md5`
+  [ -e ${name}.crt ] && crtmd5=`$OPENSSL x509 -noout -modulus -in ${name}.crt | $OPENSSL md5`
+  [ -e ${name}.csr ] && csrmd5=`$OPENSSL req -noout -modulus -in ${name}.csr | $OPENSSL md5`
+  if [ -n "$crtmd5" -a "$crtmd5" != "$keymd5" ]; then
     echo "crt: $crtmd5 <> key: $keymd5"
     exit 1
   fi
-  if [ "$csrmd5" != "$keymd5" ]; then
+  if [ -n "$csrmd5" -a "$csrmd5" != "$keymd5" ]; then
     echo "csr: $csrmd5 <> key: $keymd5"
     exit 1
   fi
-  echo "md5: $crtmd5"
+  echo "md5: $keymd5"
 }
 
 connect() {
@@ -142,7 +148,7 @@ pack_to_pfx() {
   check_pfx
   [ -e ca.pem ] && certs="-certfile ca.pem"
   [ -e ca-bundle.pem ] && certs="-certfile ca-bundle.pem"
-  $OPENSSL pkcs12 -export -out ${name}.pfx -inkey ${name}.key -in ${name}.crt $certs
+  $OPENSSL pkcs12 -export -out ${name}.pfx -inkey ${name}.key.secure -in ${name}.crt $certs
 }
 
 show_help() {
@@ -183,13 +189,14 @@ case $1 in
   "new") create_key_csr ;;
   "self") self_signed ;;
   "req") create_csr ;;
+  "key") create_key ;;
   "reqcrt") create_csr_from_crt ;;
   "rmpass") remove_password ;;
-  "readcsr") check_csr ;;
-  "readkey") check_key ;;
-  "readcrt") check_crt ;;
-  "readpfx") check_pfx ;;
-  "readp12") check_p12 ;;
+  "readcsr") read_csr ;;
+  "readkey") read_key ;;
+  "readcrt") read_crt ;;
+  "readpfx") read_pfx ;;
+  "readp12") read_p12 ;;
   "md5") verify_md5 ;;
   "connect") connect ;;
   "derpem") der_to_pem ;;
