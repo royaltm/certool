@@ -1,7 +1,7 @@
 CerTool
 =======
 
-This is a pill for the openssl certification pain-in-the-ass
+You'd rather swallow this pill instead of taking the regular openssl certification suppository.
 
 
 Installation
