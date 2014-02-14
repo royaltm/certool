@@ -1,0 +1,201 @@
+#!/bin/sh
+OPENSSL=`which openssl`
+
+if [ $? -ne 0 ]; then
+  echo "Couldn't find openssl!"
+  exit 2
+fi
+
+host=$2
+name=$2
+[ -z "$name" ] && name=ssl
+
+check_file() {
+  local file
+  file=$1
+  if [ -e "${file}" ]; then
+    echo "${file} already exists"
+    exit 1
+  fi
+}
+
+check_key() {
+  check_file ${name}.key
+}
+
+check_key_secure() {
+  check_file ${name}.key.secure
+}
+
+check_csr() {
+  check_file ${name}.csr
+}
+
+check_crt() {
+  check_file ${name}.crt
+}
+
+check_der() {
+  check_file ${name}.der
+}
+
+check_pem() {
+  check_file ${name}.pem
+}
+
+check_pfx() {
+  check_file ${name}.pfx
+}
+
+create_key_csr() {
+  check_key_secure
+  check_csr
+  $OPENSSL req -out ${name}.csr -new -newkey rsa:2048 -nodes -keyout ${name}.key.secure
+}
+
+create_csr() {
+  check_csr
+  $OPENSSL req -out ${name}.csr -key ${name}.key.secure -new
+}
+
+create_csr_from_crt() {
+  check_csr
+  $OPENSSL x509 -x509toreq -in ${name}.crt -out ${name}.csr -signkey ${name}.key.secure
+}
+
+self_signed() {
+  check_key_secure
+  check_csr
+  $OPENSSL req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${name}.key -out ${name}.crt
+}
+
+remove_password() {
+  check_key
+  $OPENSSL rsa -in ${name}.key.secure -out ${name}.key
+}
+
+check_csr() {
+  $OPENSSL req -text -noout -verify -in ${name}.csr
+}
+
+check_key() {
+  $OPENSSL rsa -in ${name}.key -check
+}
+
+check_crt() {
+  $OPENSSL x509 -in ${name}.crt -text -noout
+}
+
+check_p12() {
+  $OPENSSL pkcs12 -info -in ${name}.p12
+}
+
+check_pfx() {
+  $OPENSSL pkcs12 -info -in ${name}.pfx
+}
+
+verify_md5() {
+  crtmd5=`$OPENSSL x509 -noout -modulus -in ${name}.crt | $OPENSSL md5`
+  keymd5=`$OPENSSL rsa -noout -modulus -in ${name}.key | $OPENSSL md5`
+  csrmd5=`$OPENSSL req -noout -modulus -in ${name}.csr | $OPENSSL md5`
+  if [ "$crtmd5" != "$keymd5" ]; then
+    echo "crt: $crtmd5 <> key: $keymd5"
+    exit 1
+  fi
+  if [ "$csrmd5" != "$keymd5" ]; then
+    echo "csr: $csrmd5 <> key: $keymd5"
+    exit 1
+  fi
+  echo "md5: $crtmd5"
+}
+
+connect() {
+  if [ -z "$host" ]; then
+    echo -n "Host: "
+    read host
+  fi
+  $OPENSSL s_client -connect ${host}:443
+}
+
+der_to_pem() {
+  check_crt
+  $OPENSSL x509 -inform der -in ${name}.der -out ${name}.crt
+}
+
+pem_to_der() {
+  check_der
+  $OPENSSL x509 -outform der -in ${name}.crt -out ${name}.der
+}
+
+pfx_to_pem() {
+  check_pem
+  $OPENSSL pkcs12 -in ${name}.pfx -out ${name}.pem -nodes
+}
+
+p12_to_pem() {
+  check_pem
+  $OPENSSL pkcs12 -in ${name}.p12 -out ${name}.pem -nodes
+}
+
+pack_to_pfx() {
+  local certs
+  check_pfx
+  [ -e ca.pem ] && certs="-certfile ca.pem"
+  [ -e ca-bundle.pem ] && certs="-certfile ca-bundle.pem"
+  $OPENSSL pkcs12 -export -out ${name}.pfx -inkey ${name}.key -in ${name}.crt $certs
+}
+
+show_help() {
+  cat -<<EOH
+$0: <command> [ssl_name|host]
+
+ssl_name: name of a file without extension (default: ssl)
+host: remote hostname to check ("connect" only)
+
+commands:
+
+  Generate:
+  - new:     a new private key and Certificate Signing Request (CSR)
+  - self:    a self-signed certificate
+  - req:     a CSR for an existing private key
+  - reqcrt:  a CSR based on an existing certificate
+  - rmpass:  Remove a passphrase from a private key
+
+  Check:
+  - readcsr: a Certificate Signing Request (CSR)
+  - readkey: a private key
+  - readcrt: a certificate
+  - readpfx: a PKCS#12 file (.pfx)
+  - readp12: a PKCS#12 file (.p12)
+  - md5:     if MD5 of the public key matches with CSR and private key
+  - connect: Show all the certificates (including Intermediates) from the host
+
+  Convert:
+  - derpem:  DER (binary) file (.der) to PEM (ascii) file (.crt)
+  - pemder:  PEM (ascii) file (.crt) to DER (binary) file (.der)
+  - pfxpem:  PKCS#12 (.pfx) containing a key and certificates to PEM (.pem)
+  - p12pem:  PKCS#12 (.p12) containing a key and certificates to PEM (.pem)
+  - pfx:     certificate file and a private key to PKCS#12 (.pfx)
+
+EOH
+}
+case $1 in
+  "new") create_key_csr ;;
+  "self") self_signed ;;
+  "req") create_csr ;;
+  "reqcrt") create_csr_from_crt ;;
+  "rmpass") remove_password ;;
+  "readcsr") check_csr ;;
+  "readkey") check_key ;;
+  "readcrt") check_crt ;;
+  "readpfx") check_pfx ;;
+  "readp12") check_p12 ;;
+  "md5") verify_md5 ;;
+  "connect") connect ;;
+  "derpem") der_to_pem ;;
+  "pemder") pem_to_der ;;
+  "pfxpem") pfx_to_pem ;;
+  "p12pem") p12_to_pem ;;
+  "pfx") pack_to_pfx ;;
+  *) show_help ;;
+esac
