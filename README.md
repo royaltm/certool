@@ -8,15 +8,16 @@ Installation
 ------------
 
     git clone https://github.com/royaltm/certool.git
-    make install
+    cd certool
+    [sudo] make install
 
 Custom prefix installation:
 
-    prefix=/usr make install
+    make prefix=/usr install
 
 Custom destination directory installation:
 
-    destdir=$HOME/scripts make install
+    make destdir=$HOME/scripts install
 
 
 Usage

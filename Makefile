@@ -1,6 +1,6 @@
-PREFIX=$(prefix:/usr/local)
-BINDIR=$(destdir:$PREFIX/bin)
+prefix=/usr/local
+destdir=${prefix}/bin
 install:
-	install -m 755 certool "${BINDIR}"
+	install -m 755 certool "${destdir}"
 
 .PHONY: install
