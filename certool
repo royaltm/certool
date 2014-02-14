@@ -105,9 +105,19 @@ read_pfx() {
 }
 
 verify_md5() {
-  keymd5=`$OPENSSL rsa -noout -modulus -in "${keyname}" | $OPENSSL md5`
-  [ -e "${name}.crt" ] && crtmd5=`$OPENSSL x509 -noout -modulus -in "${name}.crt" | $OPENSSL md5`
-  [ -e "${name}.csr" ] && csrmd5=`$OPENSSL req -noout -modulus -in "${name}.csr" | $OPENSSL md5`
+  local keymd5=`$OPENSSL rsa -noout -modulus -in "${keyname}"`
+  [ $? -ne 0 ] && exit 1
+  keymd5=`echo $keymd5 | $OPENSSL md5`
+  if [ -e "${name}.crt" ]; then
+    crtmd5=`$OPENSSL x509 -noout -modulus -in "${name}.crt"`
+    [ $? -ne 0 ] && exit 1
+    crtmd5=`echo $crtmd5 | $OPENSSL md5`
+  fi
+  if [ -e "${name}.csr" ]; then
+    csrmd5=`$OPENSSL req -noout -modulus -in "${name}.csr"`
+    [ $? -ne 0 ] && exit 1
+    csrmd5=`echo $csrmd5 | $OPENSSL md5`
+  fi
   if [ -n "$crtmd5" -a "$crtmd5" != "$keymd5" ]; then
     echo "crt: $crtmd5 <> key: $keymd5"
     exit 1
