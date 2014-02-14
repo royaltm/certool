@@ -9,6 +9,8 @@ fi
 host=$2
 name=$2
 [ -z "$name" ] && name=ssl
+keyname="${name}.key.secure"
+[ -e "${name}.key" ] && keyname=${name}.key
 
 check_file() {
   local file="$1"
@@ -19,91 +21,93 @@ check_file() {
 }
 
 check_key() {
-  check_file ${name}.key
+  check_file "${name}.key"
 }
 
 check_key_secure() {
-  check_file ${name}.key.secure
+  check_file "${name}.key.secure"
 }
 
 check_csr() {
-  check_file ${name}.csr
+  check_file "${name}.csr"
 }
 
 check_crt() {
-  check_file ${name}.crt
+  check_file "${name}.crt"
 }
 
 check_der() {
-  check_file ${name}.der
+  check_file "${name}.der"
 }
 
 check_pem() {
-  check_file ${name}.pem
+  check_file "${name}.pem"
 }
 
 check_pfx() {
-  check_file ${name}.pfx
+  check_file "${name}.pfx"
 }
 
 create_key() {
   check_key_secure
-  $OPENSSL genrsa -des3 -out ${name}.key.secure 2048
+  $OPENSSL genrsa -des3 -out "${name}.key.secure" 2048
 }
 
 create_key_csr() {
   check_key
   check_key_secure
   check_csr
-  $OPENSSL req -out ${name}.csr -new -newkey rsa:2048 -nodes -keyout ${name}.key
-  $OPENSSL rsa -des3 -in ${name}.key -out ${name}.key.secure
+  $OPENSSL req -out "${name}.csr" -new -newkey rsa:2048 -nodes -keyout "${name}.key"
+  $OPENSSL rsa -des3 -in "${name}.key" -out "${name}.key.secure"
 }
 
 create_csr() {
   check_csr
-  $OPENSSL req -out ${name}.csr -key ${name}.key.secure -new
+  $OPENSSL req -out "${name}.csr" -key "${keyname}" -new
 }
 
 create_csr_from_crt() {
   check_csr
-  $OPENSSL x509 -x509toreq -in ${name}.crt -out ${name}.csr -signkey ${name}.key.secure
+  $OPENSSL x509 -x509toreq -in "${name}.crt" -out "${name}.csr" -signkey "${keyname}"
 }
 
 self_signed() {
+  check_key
   check_key_secure
   check_csr
-  $OPENSSL req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${name}.key.secure -out ${name}.crt
+  $OPENSSL req -x509 -nodes -days 365 -newkey rsa:2048 -keyout "${name}.key" -out "${name}.crt"
+  $OPENSSL rsa -des3 -in "${name}.key" -out "${name}.key.secure"
 }
 
 remove_password() {
   check_key
-  $OPENSSL rsa -in ${name}.key.secure -out ${name}.key
+  $OPENSSL rsa -in "${name}.key.secure" -out "${name}.key"
 }
 
 read_csr() {
-  $OPENSSL req -text -noout -verify -in ${name}.csr
+  $OPENSSL req -text -noout -verify -in "${name}.csr"
 }
 
 read_key() {
-  $OPENSSL rsa -in ${name}.key.secure -check
+  $OPENSSL rsa -in "${keyname}" -check
 }
 
 read_crt() {
-  $OPENSSL x509 -in ${name}.crt -text -noout
+  $OPENSSL x509 -in "${name}.crt" -text -noout
 }
 
 read_p12() {
-  $OPENSSL pkcs12 -info -in ${name}.p12
+  $OPENSSL pkcs12 -info -in "${name}.p12"
 }
 
 read_pfx() {
-  $OPENSSL pkcs12 -info -in ${name}.pfx
+  $OPENSSL pkcs12 -info -in "${name}.pfx"
 }
 
 verify_md5() {
-  keymd5=`$OPENSSL rsa -noout -modulus -in ${name}.key.secure | $OPENSSL md5`
-  [ -e ${name}.crt ] && crtmd5=`$OPENSSL x509 -noout -modulus -in ${name}.crt | $OPENSSL md5`
-  [ -e ${name}.csr ] && csrmd5=`$OPENSSL req -noout -modulus -in ${name}.csr | $OPENSSL md5`
+  keymd5=`$OPENSSL rsa -noout -modulus -in "${keyname}" | $OPENSSL md5`
+  [ -e "${name}.crt" ] && crtmd5=`$OPENSSL x509 -noout -modulus -in "${name}.crt" | $OPENSSL md5`
+  [ -e "${name}.csr" ] && csrmd5=`$OPENSSL req -noout -modulus -in "${name}.csr" | $OPENSSL md5`
   if [ -n "$crtmd5" -a "$crtmd5" != "$keymd5" ]; then
     echo "crt: $crtmd5 <> key: $keymd5"
     exit 1
@@ -125,22 +129,22 @@ connect() {
 
 der_to_pem() {
   check_crt
-  $OPENSSL x509 -inform der -in ${name}.der -out ${name}.crt
+  $OPENSSL x509 -inform der -in "${name}.der" -out "${name}.crt"
 }
 
 pem_to_der() {
   check_der
-  $OPENSSL x509 -outform der -in ${name}.crt -out ${name}.der
+  $OPENSSL x509 -outform der -in "${name}.crt" -out "${name}.der"
 }
 
 pfx_to_pem() {
   check_pem
-  $OPENSSL pkcs12 -in ${name}.pfx -out ${name}.pem -nodes
+  $OPENSSL pkcs12 -in "${name}.pfx" -out "${name}.pem" -nodes
 }
 
 p12_to_pem() {
   check_pem
-  $OPENSSL pkcs12 -in ${name}.p12 -out ${name}.pem -nodes
+  $OPENSSL pkcs12 -in "${name}.p12" -out "${name}.pem" -nodes
 }
 
 pack_to_pfx() {
@@ -148,7 +152,7 @@ pack_to_pfx() {
   check_pfx
   [ -e ca.pem ] && certs="-certfile ca.pem"
   [ -e ca-bundle.pem ] && certs="-certfile ca-bundle.pem"
-  $OPENSSL pkcs12 -export -out ${name}.pfx -inkey ${name}.key.secure -in ${name}.crt $certs
+  $OPENSSL pkcs12 -export -out "${name}.pfx" -inkey "${keyname}" -in "${name}.crt" $certs
 }
 
 show_help() {
