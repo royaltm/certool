@@ -17,7 +17,7 @@ Custom prefix installation:
 
 Custom destination directory installation:
 
-    make destdir=$HOME/scripts install
+    make destdir=$HOME/scripts/ install
 
 
 Usage
