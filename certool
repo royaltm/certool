@@ -10,7 +10,7 @@ host=$2
 name=$2
 [ -z "$name" ] && name=ssl
 keyname="${name}.key.secure"
-[ -e "${name}.key" ] && keyname=${name}.key
+[ -e "${name}.key" ] && keyname="${name}.key"
 
 check_file() {
   local file="$1"
