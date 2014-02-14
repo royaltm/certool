@@ -108,7 +108,7 @@ read_pfx() {
 }
 
 verify_md5() {
-  local keymd5=`$OPENSSL rsa -noout -modulus -in "${keyname}"`
+  keymd5=`$OPENSSL rsa -noout -modulus -in "${keyname}"`
   [ $? -ne 0 ] && exit 1
   keymd5=`echo $keymd5 | $OPENSSL md5`
   if [ -e "${name}.crt" ]; then
