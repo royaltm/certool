@@ -4,8 +4,8 @@ CerTool
 You'd rather swallow this pill instead of taking the regular openssl certification suppository.
 
 
-Installation
-------------
+Install
+-------
 
     git clone https://github.com/royaltm/certool.git
     cd certool
