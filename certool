@@ -57,13 +57,13 @@ create_key_csr() {
   check_key
   check_key_secure
   check_csr
-  $OPENSSL req -out "${name}.csr" -new -newkey rsa:2048 -nodes -keyout "${name}.key"
+  $OPENSSL req -out "${name}.csr" -new -newkey rsa:2048 -nodes -keyout "${name}.key" -sha1
   $OPENSSL rsa -des3 -in "${name}.key" -out "${name}.key.secure"
 }
 
 create_csr() {
   check_csr
-  $OPENSSL req -out "${name}.csr" -key "${keyname}" -new
+  $OPENSSL req -out "${name}.csr" -key "${keyname}" -new -sha1
 }
 
 create_csr_from_crt() {
@@ -75,7 +75,7 @@ self_signed() {
   check_key
   check_key_secure
   check_csr
-  $OPENSSL req -x509 -nodes -days 365 -newkey rsa:2048 -keyout "${name}.key" -out "${name}.crt"
+  $OPENSSL req -x509 -nodes -days 365 -newkey rsa:2048 -keyout "${name}.key" -out "${name}.crt" -sha1
   $OPENSSL rsa -des3 -in "${name}.key" -out "${name}.key.secure"
 }
 
