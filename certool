@@ -88,6 +88,11 @@ remove_password() {
   $OPENSSL rsa -in "${name}.key.secure" -out "${name}.key"
 }
 
+protect_password() {
+  check_key_secure
+  $OPENSSL rsa -${CIPHER} -in "${name}.key" -out "${name}.key.secure"
+}
+
 read_csr() {
   $OPENSSL req -text -noout -verify -in "${name}.csr"
 }
@@ -184,6 +189,7 @@ commands:
   - req:     a CSR for an existing private key
   - reqcrt:  a CSR based on an existing certificate
   - rmpass:  Remove a passphrase from a private key
+  - protect: Encrypt private key with a password
 
   Check:
   - readcsr: a Certificate Signing Request (CSR)
@@ -210,6 +216,7 @@ case $1 in
   "key") create_key ;;
   "reqcrt") create_csr_from_crt ;;
   "rmpass") remove_password ;;
+  "protect") protect_password ;;
   "readcsr") read_csr ;;
   "readkey") read_key ;;
   "readcrt") read_crt ;;
